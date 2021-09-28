@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Earth</title>
+        <script src="{{ url_for('static', filename='js/node_modules/worldwindjs/build/dist/worldwind.js') }}"></script>
+        <script>
+            window.onload = function () {
+                // 为canvas 创建一个 WorldWindow
+                var wwd = new WorldWind.WorldWindow("canvasOne");
+
+                // 在WorldWindow的地球上添加一些图像层
+                wwd.addLayer(new WorldWind.BMNGOneImageLayer());
+                wwd.addLayer(new WorldWind.BMNGLandsatLayer());
+
+                // 在WorldWindow 上添加一个指南针，一个坐标显示和一些视图控制器
+                wwd.addLayer(new WorldWind.CompassLayer());
+                wwd.addLayer(new WorldWind.CoordinatesDisplayLayer(wwd));
+                wwd.addLayer(new WorldWind.ViewControlsLayer(wwd));
+            }
+        </script>
+    </head>
+    <body>
+        <canvas id="canvasOne" width="1024" height="768">
+            Your browser does not support HTML5 Canvas.
+        </canvas>
+    </body>
+</html>
