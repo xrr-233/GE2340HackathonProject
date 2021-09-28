@@ -5,6 +5,31 @@
         <title>Earth</title>
         <script src="{{ url_for('static', filename='js/node_modules/worldwindjs/build/dist/worldwind.js') }}"></script>
         <script>
+
+            var placemarkAttributes = new WorldWind.PlacemarkAttributes(null);
+
+            function SetPlacemarkAttribute() {
+                // 设置地标属性 如图片偏移、标签偏移
+                placemarkAttributes.imageOffset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.3, WorldWind.OFFSET_FRACTION, 0.0);
+
+                placemarkAttributes.labelAttributes.color = WorldWind.Color.YELLOW;
+                placemarkAttributes.labelAttributes.offset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.5, WorldWind.OFFSET_FRACTION, 1.0);
+
+                placemarkAttributes.imageSource = WorldWind.configuration.baseUrl + "images/pushpins/plain-red.png";
+            }
+
+            function AddPlacemark(name, position) {
+                //建立新地标
+                var placemark = new WorldWind.Placemark(position, false, placemarkAttributes);
+
+                placemark.label = name + "\n" +
+                                  "Lat " + placemark.position.latitude.toPrecision(4).toString() + "\n" +
+                                  "Lon " + placemark.position.longitude.toPrecision(5).toString();
+                placemark.alwaysOnTop = true;
+
+                return placemark;
+            }
+
             window.onload = function () {
                 // 为canvas 创建一个 WorldWindow
                 var wwd = new WorldWind.WorldWindow("canvasOne");
@@ -17,6 +42,64 @@
                 wwd.addLayer(new WorldWind.CompassLayer());
                 wwd.addLayer(new WorldWind.CoordinatesDisplayLayer(wwd));
                 wwd.addLayer(new WorldWind.ViewControlsLayer(wwd));
+
+                // 建立地标图层
+                var placemarkLayer = new WorldWind.RenderableLayer("Placemark");
+                wwd.addLayer(placemarkLayer);
+                SetPlacemarkAttribute();
+
+                // 建立多边形图层
+                var polygonLayer = new WorldWind.RenderableLayer("Polygon");
+                wwd.addLayer(polygonLayer);
+
+                // 建立自定义模型图层
+                var modelLayer = new WorldWind.RenderableLayer("Model");
+                wwd.addLayer(modelLayer);
+
+                placemarkLayer.addRenderable(AddPlacemark("Xiamen 厦门", new WorldWind.Position(24.26, 118.04, 100.0)));
+                placemarkLayer.addRenderable(AddPlacemark("Hong Kong 香港", new WorldWind.Position(22.32, 114.17, 100.0)));
+
+                // <editor-fold desc="生成多边形边界">
+                var FrenchPolygonAttributes = new WorldWind.ShapeAttributes(null);
+                FrenchPolygonAttributes.interiorColor = new WorldWind.Color(0, 1, 1, 0.25);
+                FrenchPolygonAttributes.outlineColor = new WorldWind.Color(1, 1, 0, 0.5);
+                FrenchPolygonAttributes.drawOutline = true;
+                FrenchPolygonAttributes.applyLighting = true;
+
+                var BritishPolygonAttributes = new WorldWind.ShapeAttributes(null);
+                BritishPolygonAttributes.interiorColor = new WorldWind.Color(1, 1, 0, 0.25);
+                BritishPolygonAttributes.outlineColor = new WorldWind.Color(1, 1, 0, 0.5);
+                BritishPolygonAttributes.drawOutline = true;
+                BritishPolygonAttributes.applyLighting = true;
+
+                var FrenchBoundaries = [], BritishBoundaries = [];
+                FrenchBoundaries.push(new WorldWind.Position(43.53, -1.47, 700000.0));
+                FrenchBoundaries.push(new WorldWind.Position(48.47, -4.72, 700000.0));
+                FrenchBoundaries.push(new WorldWind.Position(50.99, 1.79, 700000.0));
+                FrenchBoundaries.push(new WorldWind.Position(48.84, 7.48, 700000.0));
+                FrenchBoundaries.push(new WorldWind.Position(43.87, 7.42, 700000.0));
+                FrenchBoundaries.push(new WorldWind.Position(42.87, 2.86, 700000.0));
+                BritishBoundaries.push(new WorldWind.Position(49.91, -5.80, 350000.0));
+                BritishBoundaries.push(new WorldWind.Position(58.56, -7.37, 350000.0));
+                BritishBoundaries.push(new WorldWind.Position(57.65, -1.84, 350000.0));
+                BritishBoundaries.push(new WorldWind.Position(51.42, 2.14, 350000.0));
+
+                var FrenchPolygon = new WorldWind.Polygon(FrenchBoundaries, FrenchPolygonAttributes);
+                var BritishPolygon = new WorldWind.Polygon(BritishBoundaries, BritishPolygonAttributes);
+                FrenchPolygon.extrude = true;
+                BritishPolygon.extrude = true;
+                polygonLayer.addRenderable(FrenchPolygon);
+                polygonLayer.addRenderable(BritishPolygon);
+                // </editor-fold>
+
+                // 听说可以放置自定义模型 但我用了没效果
+                var config = {dirPath: WorldWind.configuration.baseUrl + 'examples/collada_models/duck/'};
+                var colladaLoader = new WorldWind.ColladaLoader(new WorldWind.Position(39.4, 115.7, 80000.0), config);
+
+                colladaLoader.load("duck.dae", function (colladaModel) {
+                    colladaModel.scale = 9000;
+                    modelLayer.addRenderable(colladaModel);
+                });
             }
         </script>
     </head>
