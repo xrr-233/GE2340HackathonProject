@@ -10,21 +10,25 @@
 
             function SetPlacemarkAttribute() {
                 // 设置地标属性 如图片偏移、标签偏移
-                placemarkAttributes.imageOffset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.3, WorldWind.OFFSET_FRACTION, 0.0);
+                placemarkAttributes.imageScale = 0.2;
 
                 placemarkAttributes.labelAttributes.color = WorldWind.Color.YELLOW;
-                placemarkAttributes.labelAttributes.offset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.5, WorldWind.OFFSET_FRACTION, 1.0);
+                placemarkAttributes.labelAttributes.offset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.5, WorldWind.OFFSET_FRACTION, 1.2);
 
-                placemarkAttributes.imageSource = WorldWind.configuration.baseUrl + "images/pushpins/plain-red.png";
+                placemarkAttributes.imageSource = WorldWind.configuration.baseUrl + "images/blue-dot.png";
             }
 
             function AddPlacemark(name, position) {
                 //建立新地标
                 var placemark = new WorldWind.Placemark(position, false, placemarkAttributes);
 
+                /*
+                //显示标签信息
                 placemark.label = name + "\n" +
                                   "Lat " + placemark.position.latitude.toPrecision(4).toString() + "\n" +
-                                  "Lon " + placemark.position.longitude.toPrecision(5).toString();
+                                  "Lon " + placemark.position.longitude.toPrecision(4).toString() + "\n" +
+                                  "Alt " + (placemark.position.altitude / 1000.0).toPrecision(4).toString();
+                 */
                 placemark.alwaysOnTop = true;
 
                 return placemark;
@@ -48,6 +52,10 @@
                 wwd.addLayer(placemarkLayer);
                 SetPlacemarkAttribute();
 
+                {% for i in range(position | length) %}
+                    placemarkLayer.addRenderable(AddPlacemark("#" + {{ i + 1 }}, new WorldWind.Position({{ position[i][0] }}, {{ position[i][1] }}, {{ position[i][2] }} * 1000.0)));
+                {% endfor %}
+                /*
                 // 建立多边形图层
                 var polygonLayer = new WorldWind.RenderableLayer("Polygon");
                 wwd.addLayer(polygonLayer);
@@ -100,6 +108,7 @@
                     colladaModel.scale = 9000;
                     modelLayer.addRenderable(colladaModel);
                 });
+                */
             }
         </script>
     </head>
