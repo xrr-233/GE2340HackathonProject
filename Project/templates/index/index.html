@@ -5,8 +5,12 @@
         <title>Earth</title>
         <script src="{{ url_for('static', filename='js/node_modules/worldwindjs/build/dist/worldwind.js') }}"></script>
         <script>
-
             var placemarkAttributes = new WorldWind.PlacemarkAttributes(null);
+            var positionSatellite = new Array(0);
+            var timeStep = 1;
+
+            var wwd;
+            var placemarkLayer;
 
             function SetPlacemarkAttribute() {
                 // 设置地标属性 如图片偏移、标签偏移
@@ -22,21 +26,18 @@
                 //建立新地标
                 var placemark = new WorldWind.Placemark(position, false, placemarkAttributes);
 
-                /*
                 //显示标签信息
                 placemark.label = name + "\n" +
                                   "Lat " + placemark.position.latitude.toPrecision(4).toString() + "\n" +
                                   "Lon " + placemark.position.longitude.toPrecision(4).toString() + "\n" +
                                   "Alt " + (placemark.position.altitude / 1000.0).toPrecision(4).toString();
-                 */
                 placemark.alwaysOnTop = true;
 
                 return placemark;
             }
 
             window.onload = function () {
-                // 为canvas 创建一个 WorldWindow
-                var wwd = new WorldWind.WorldWindow("canvasOne");
+                wwd = new WorldWind.WorldWindow("canvasOne");
 
                 // 在WorldWindow的地球上添加一些图像层
                 wwd.addLayer(new WorldWind.BMNGOneImageLayer());
@@ -47,14 +48,14 @@
                 wwd.addLayer(new WorldWind.CoordinatesDisplayLayer(wwd));
                 wwd.addLayer(new WorldWind.ViewControlsLayer(wwd));
 
+                // Add atmosphere layer on top of base imagery layer.
+                wwd.addLayer(new WorldWind.AtmosphereLayer());
+
                 // 建立地标图层
-                var placemarkLayer = new WorldWind.RenderableLayer("Placemark");
+                placemarkLayer = new WorldWind.RenderableLayer("Placemark");
                 wwd.addLayer(placemarkLayer);
                 SetPlacemarkAttribute();
 
-                {% for i in range(position | length) %}
-                    placemarkLayer.addRenderable(AddPlacemark("#" + {{ i + 1 }}, new WorldWind.Position({{ position[i][0] }}, {{ position[i][1] }}, {{ position[i][2] }} * 1000.0)));
-                {% endfor %}
                 /*
                 // 建立多边形图层
                 var polygonLayer = new WorldWind.RenderableLayer("Polygon");
@@ -110,11 +111,56 @@
                 });
                 */
             }
+
+            function refresh() {
+                $.ajax({
+                    url: "{{ url_for('compute.compute') }}",
+                    data: "timestep=" + timeStep,
+                    type: "GET",
+                    dataType: 'json',
+                    success: function(data) {
+                        placemarkLayer.removeAllRenderables();
+                        positionSatellite = data.data;
+
+                        for(var i = 0; i < positionSatellite.length; i++)
+                            positionSatellite[i] = AddPlacemark("#" + (i + 1), new WorldWind.Position(positionSatellite[i][0], positionSatellite[i][1], positionSatellite[i][2] * 1000.0));
+
+                        placemarkLayer.addRenderables(positionSatellite);
+                        wwd.redraw();
+
+                        timeStep = data.timestep;
+                        document.getElementById("time").innerHTML = "Current time: " + data.time;
+                        document.getElementById("timestep").innerHTML = "&nbsp|&nbspCurrent timestep: " + timeStep + "s";
+                    },
+                    error: function() {
+                        console.log('Failed to load~');
+                    }
+                });
+            }
+
+            function changeTimestep() {
+                timeStep = document.getElementById("need").value;
+                document.getElementById("need").value = null;
+            }
+
+            setInterval("refresh()", timeStep * 1000 * 0.333);
         </script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js" type="text/javascript"></script>
     </head>
     <body>
         <canvas id="canvasOne" width="1024" height="768">
             Your browser does not support HTML5 Canvas.
         </canvas>
+        <div style="float:left;">
+            <p id="time">Current time: </p>
+        </div>
+        <div style="float:left;">
+            <p id="timestep">&nbsp|&nbspCurrent timestep: </p>
+        </div>
+        <label>
+            Input needed timestep (in second):
+            <input type="number" id="need" style="width: 50px;">
+            <button onclick="changeTimestep()">Change</button>
+        </label>
     </body>
 </html>
