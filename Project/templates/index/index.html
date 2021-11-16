@@ -1,156 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Earth</title>
-        <script src="{{ url_for('static', filename='js/node_modules/worldwindjs/build/dist/worldwind.js') }}"></script>
-        <script>
-            var placemarkAttributes = new WorldWind.PlacemarkAttributes(null);
-            var positionSatellite = new Array(0);
-            var timeStep = 1;
-
-            var wwd;
-            var placemarkLayer;
-
-            function SetPlacemarkAttribute() {
-                placemarkAttributes.imageScale = 0.2;
-
-                placemarkAttributes.labelAttributes.color = WorldWind.Color.YELLOW;
-                placemarkAttributes.labelAttributes.offset = new WorldWind.Offset(WorldWind.OFFSET_FRACTION, 0.5, WorldWind.OFFSET_FRACTION, 1.2);
-
-                placemarkAttributes.imageSource = WorldWind.configuration.baseUrl + "images/blue-dot.png";
-            }
-
-            function AddPlacemark(name, position) {
-                var placemark = new WorldWind.Placemark(position, false, placemarkAttributes);
-
-                placemark.label = name + "\n" +
-                                  "Lat " + placemark.position.latitude.toPrecision(4).toString() + "\n" +
-                                  "Lon " + placemark.position.longitude.toPrecision(4).toString() + "\n" +
-                                  "Alt " + (placemark.position.altitude / 1000.0).toPrecision(4).toString();
-                placemark.alwaysOnTop = true;
-
-                return placemark;
-            }
-
-            window.onload = function () {
-                wwd = new WorldWind.WorldWindow("canvasOne");
-
-                wwd.addLayer(new WorldWind.BMNGOneImageLayer());
-                wwd.addLayer(new WorldWind.BMNGLandsatLayer());
-
-                wwd.addLayer(new WorldWind.CompassLayer());
-                wwd.addLayer(new WorldWind.CoordinatesDisplayLayer(wwd));
-                wwd.addLayer(new WorldWind.ViewControlsLayer(wwd));
-
-                wwd.addLayer(new WorldWind.AtmosphereLayer());
-
-                placemarkLayer = new WorldWind.RenderableLayer("Placemark");
-                wwd.addLayer(placemarkLayer);
-                SetPlacemarkAttribute();
-
-                /*
-                var polygonLayer = new WorldWind.RenderableLayer("Polygon");
-                wwd.addLayer(polygonLayer);
-
-                var modelLayer = new WorldWind.RenderableLayer("Model");
-                wwd.addLayer(modelLayer);
-
-                placemarkLayer.addRenderable(AddPlacemark("Xiamen", new WorldWind.Position(24.26, 118.04, 100.0)));
-                placemarkLayer.addRenderable(AddPlacemark("Hong Kong", new WorldWind.Position(22.32, 114.17, 100.0)));
-
-                // <editor-fold desc="">
-                var FrenchPolygonAttributes = new WorldWind.ShapeAttributes(null);
-                FrenchPolygonAttributes.interiorColor = new WorldWind.Color(0, 1, 1, 0.25);
-                FrenchPolygonAttributes.outlineColor = new WorldWind.Color(1, 1, 0, 0.5);
-                FrenchPolygonAttributes.drawOutline = true;
-                FrenchPolygonAttributes.applyLighting = true;
-
-                var BritishPolygonAttributes = new WorldWind.ShapeAttributes(null);
-                BritishPolygonAttributes.interiorColor = new WorldWind.Color(1, 1, 0, 0.25);
-                BritishPolygonAttributes.outlineColor = new WorldWind.Color(1, 1, 0, 0.5);
-                BritishPolygonAttributes.drawOutline = true;
-                BritishPolygonAttributes.applyLighting = true;
-
-                var FrenchBoundaries = [], BritishBoundaries = [];
-                FrenchBoundaries.push(new WorldWind.Position(43.53, -1.47, 700000.0));
-                FrenchBoundaries.push(new WorldWind.Position(48.47, -4.72, 700000.0));
-                FrenchBoundaries.push(new WorldWind.Position(50.99, 1.79, 700000.0));
-                FrenchBoundaries.push(new WorldWind.Position(48.84, 7.48, 700000.0));
-                FrenchBoundaries.push(new WorldWind.Position(43.87, 7.42, 700000.0));
-                FrenchBoundaries.push(new WorldWind.Position(42.87, 2.86, 700000.0));
-                BritishBoundaries.push(new WorldWind.Position(49.91, -5.80, 350000.0));
-                BritishBoundaries.push(new WorldWind.Position(58.56, -7.37, 350000.0));
-                BritishBoundaries.push(new WorldWind.Position(57.65, -1.84, 350000.0));
-                BritishBoundaries.push(new WorldWind.Position(51.42, 2.14, 350000.0));
-
-                var FrenchPolygon = new WorldWind.Polygon(FrenchBoundaries, FrenchPolygonAttributes);
-                var BritishPolygon = new WorldWind.Polygon(BritishBoundaries, BritishPolygonAttributes);
-                FrenchPolygon.extrude = true;
-                BritishPolygon.extrude = true;
-                polygonLayer.addRenderable(FrenchPolygon);
-                polygonLayer.addRenderable(BritishPolygon);
-                // </editor-fold>
-
-                var config = {dirPath: WorldWind.configuration.baseUrl + 'examples/collada_models/duck/'};
-                var colladaLoader = new WorldWind.ColladaLoader(new WorldWind.Position(39.4, 115.7, 80000.0), config);
-
-                colladaLoader.load("duck.dae", function (colladaModel) {
-                    colladaModel.scale = 9000;
-                    modelLayer.addRenderable(colladaModel);
-                });
-                */
-            }
-
-            function refresh() {
-                $.ajax({
-                    url: "{{ url_for('compute.compute') }}",
-                    data: "timestep=" + timeStep,
-                    type: "GET",
-                    dataType: 'json',
-                    success: function(data) {
-                        placemarkLayer.removeAllRenderables();
-                        positionSatellite = data.data;
-
-                        for(var i = 0; i < positionSatellite.length; i++)
-                            positionSatellite[i] = AddPlacemark("#" + (i + 1), new WorldWind.Position(positionSatellite[i][0], positionSatellite[i][1], positionSatellite[i][2] * 1000.0));
-
-                        placemarkLayer.addRenderables(positionSatellite);
-                        wwd.redraw();
-
-                        timeStep = data.timestep;
-                        document.getElementById("time").innerHTML = "Current time: " + data.time;
-                        document.getElementById("timestep").innerHTML = "&nbsp|&nbspCurrent timestep: " + timeStep + "s";
-                    },
-                    error: function() {
-                        console.log('Failed to load~');
-                    }
-                });
-            }
-
-            function changeTimestep() {
-                timeStep = document.getElementById("need").value;
-                document.getElementById("need").value = null;
-            }
-
-            setInterval("refresh()", timeStep * 1000 * 0.333);
-        </script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js" type="text/javascript"></script>
-    </head>
-    <body>
-        <canvas id="canvasOne" width="1024" height="768">
-            Your browser does not support HTML5 Canvas.
-        </canvas>
-        <div style="float:left;">
-            <p id="time">Current time: </p>
-        </div>
-        <div style="float:left;">
-            <p id="timestep">&nbsp|&nbspCurrent timestep: </p>
-        </div>
-        <label>
-            Input needed timestep (in second):
-            <input type="number" id="need" style="width: 50px;">
-            <button onclick="changeTimestep()">Change</button>
+<head>
+    <meta charset="UTF-8">
+    <title>New Earth With LSTM And Large Amount Of Points!!</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.86.1/Build/Cesium/Cesium.js" type="text/javascript"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js" type="text/javascript"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.86.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+    <div id="cesiumContainer" class="fullSize" style="width: 80%;"></div>
+    <form id="sat_form" action="" method="GET">
+        <label for="sat_form">
+            NORAD_CAT_ID (5 digits): <input type="text" id="norad_cat_id" />
+            DATE: <input type="date" id="date" />
+            <button onclick="generate();">Generate Czml</button>
         </label>
-    </body>
+    </form>
+    <script>
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2Njg2MzMzYS0xMDJlLTQ3MmMtYjBiNi04NTNhMzVjOWUwMjkiLCJpZCI6NzE5ODMsImlhdCI6MTYzNTY5MDMxM30.slrT50oIo0mbtKbNGidcFyPeMWNkgjW6NH48CCVLjmE';
+
+        var viewer = new Cesium.Viewer('cesiumContainer', {
+            shouldAnimate: true,
+        });
+        // viewer.dataSources.add(Cesium.CzmlDataSource.load("static/data/tle-new2.czml"));
+
+        var clock = viewer.clock;
+        var timeline = viewer.timeline;
+        var pointCollection;
+
+        var initialTime = clock.currentTime;
+        var startTime = clock.startTime;
+        var stopTime = clock.stopTime;
+
+        window.onload = function () {
+            /*pointCollection = viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+
+            for (var longitude = -180; longitude < 180; longitude++) {
+                var color = Cesium.Color.PINK;
+                if ((longitude % 2) === 0) {
+                    color = Cesium.Color.CYAN;
+                }
+                for (var latitude = -90; latitude < 90; latitude++) {
+                    pointCollection.add({
+                        position: Cesium.Cartesian3.fromDegrees(longitude, latitude, 1000000), // Unit: m
+                        color: color
+                    });
+                }
+            }
+            viewer.scene.preRender.addEventListener(animatePoints);*/
+        }
+        /*function animatePoints() {
+            var seconds = Cesium.JulianDate.secondsDifference(clock.currentTime, initialTime);
+            var positionScratch = new Cesium.Cartesian3();
+            var points = pointCollection._pointPrimitives;
+            var length = points.length;
+            for (var i = 0; i < length; ++i) {
+              var point = points[i];
+              Cesium.Cartesian3.clone(point.position, positionScratch);
+              Cesium.Cartesian3.add(
+                  positionScratch,
+                  new Cesium.Cartesian3(1000 * seconds, 1000 * seconds, 1000 * seconds),
+                  positionScratch);
+              point.position = positionScratch;
+            }
+        }*/
+
+        // https://www.cnblogs.com/fuckgiser/p/5669920.html
+        // https://cesium.com/learn/cesiumjs/ref-doc/Timeline.html
+        function tick() { // Celestrak上是拽时间轴控制时间 暂且不管 先完成主体功能
+            if(Cesium.JulianDate.greaterThan(clock.currentTime, stopTime)) {
+                startTime = Cesium.JulianDate.addDays(startTime, 1.0, startTime);
+                stopTime = Cesium.JulianDate.addDays(stopTime, 1.0, stopTime);
+                timeline.zoomTo(startTime, stopTime);
+            }
+            else if(Cesium.JulianDate.lessThan(clock.currentTime, startTime)) {
+                startTime = Cesium.JulianDate.addDays(startTime, -1.0, startTime);
+                stopTime = Cesium.JulianDate.addDays(stopTime, -1.0, stopTime);
+                timeline.zoomTo(startTime, stopTime);
+            }
+            Cesium.requestAnimationFrame(tick);
+        }
+
+        // https://github.com/kujosHeist/tle2czml
+        function generate() {
+            $.ajax({
+                url: "{{ url_for('compute.generate') }}",
+                type: "GET",
+                data: {
+                    "norad_cat_id": $("#norad_cat_id").val(),
+                    "date": $("#date").val(),
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if(data['code'] !== 200)
+                        alert(data['msg']);
+                    else
+                        alert('Successfully generated!');
+                },
+                error: function() {
+                    alert('Failed to access.');
+                }
+            });
+        }
+
+        Cesium.requestAnimationFrame(tick);
+    </script>
+</body>
 </html>
