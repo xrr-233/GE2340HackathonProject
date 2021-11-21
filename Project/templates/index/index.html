@@ -22,7 +22,7 @@
         var viewer = new Cesium.Viewer('cesiumContainer', {
             shouldAnimate: true,
         });
-        // viewer.dataSources.add(Cesium.CzmlDataSource.load("static/data/tle-new2.czml"));
+        viewer.dataSources.add(Cesium.CzmlDataSource.load("static/data/result.czml"));
 
         var clock = viewer.clock;
         var timeline = viewer.timeline;

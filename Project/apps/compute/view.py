@@ -10,8 +10,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-
 from flask import Blueprint, jsonify, request, url_for
 from skyfield.api import load, EarthSatellite, wgs84
 from tle2czml.tle2czml import Colors, read_tles, create_czml_file, create_satellite_packet
@@ -20,6 +18,9 @@ from apps.compute.LSTM import myLSTM
 from apps.index.view import system_database
 
 compute_bp = Blueprint('compute', __name__)
+
+G = 6.67259 * 10 ** (-11)
+M = 5.972 * 10 ** 24  # from Google
 
 data = []
 utc_time = None
@@ -59,6 +60,9 @@ def generate():
             print("Error in " + file_name)
             continue
 
+        is_scanned = False
+        init_line1 = None
+        init_line2 = None
         for o in range(int(len(all_lines) / 3)):
             line1 = re.split(r"[ ]+", all_lines[o * 3 + 1].strip('\n'))
             line2 = re.split(r"[ ]+", all_lines[o * 3 + 2].strip('\n'))
@@ -100,11 +104,14 @@ def generate():
             mean_anomaly = float(line2[6])  # in degree, can compute perigee time
             round_per_day = float(line2[7])  # can compute periodic time
 
-            G = 6.67259 * 10 ** (-11)
-            M = 5.972 * 10 ** 24  # from Google
-            a = (G * M * (1 / round_per_day * 86400) ** 2 / (4 * math.pi ** 2)) ** (1 / 3)  # semi-major axis, unit: m
+            a = (G * M * (86400 / round_per_day) ** 2 / (4 * math.pi ** 2)) ** (1 / 3)  # semi-major axis, unit: m
 
             if (name == norad_cat_id):
+                if(not is_scanned):
+                    is_scanned = True
+                    init_line1 = all_lines[o * 3 + 1]
+                    init_line2 = all_lines[o * 3 + 2]
+
                 min_moment = min(moment, min_moment)
                 data.append([str(name), moment, a, inclination, RAAN, eccentricity, argument_of_perigee, mean_anomaly])
                 '''
@@ -133,7 +140,7 @@ def generate():
     interval = (end_date - start_date).days
     this_moment = float(str(interval) + '.50000000') # take the noon to be the representative time
 
-    if(len(data) == 0 or this_moment < min_moment):
+    if(not is_scanned or this_moment < min_moment):
         print("Internal Server Error!")
         return jsonify({"code": 500, "msg": "Internal Server Error!"})
 
@@ -142,6 +149,43 @@ def generate():
     df = pd.DataFrame(data, columns=columns, dtype=float)
     df = df.drop(columns=['Name'])
     columns = ['Moment', 'Axis', 'Inclination', 'RAAN', 'Eccentricity', 'AOP', 'MA']
+
+    inclination_round = 0
+    last_inclination = df['Inclination'][0]
+    raan_round = 0
+    last_raan = df['RAAN'][0]
+    aop_round = 0
+    last_aop = df['AOP'][0]
+    ma_round = 0
+    last_ma = df['MA'][0]
+    for i in range(1, len(df['Inclination'])):
+        if (last_inclination > 320 and df['Inclination'][i] < 80):
+            inclination_round += 1
+        elif (last_inclination < 80 and df['Inclination'][i] > 320):
+            inclination_round -= 1
+        last_inclination = df['Inclination'][i]
+        df['Inclination'][i] = 360 * inclination_round + df['Inclination'][i]
+    for i in range(1, len(df['RAAN'])):
+        if (last_raan > 320 and df['RAAN'][i] < 80):
+            raan_round += 1
+        elif (last_raan < 80 and df['RAAN'][i] > 320):
+            raan_round -= 1
+        last_raan = df['RAAN'][i]
+        df['RAAN'][i] = 360 * raan_round + df['RAAN'][i]
+    for i in range(1, len(df['AOP'])):
+        if (last_aop > 320 and df['AOP'][i] < 80):
+            aop_round += 1
+        elif (last_aop < 80 and df['AOP'][i] > 320):
+            aop_round -= 1
+        last_aop = df['AOP'][i]
+        df['AOP'][i] = 360 * aop_round + df['AOP'][i]
+    for i in range(1, len(df['MA'])):
+        if (last_ma > 320 and df['MA'][i] < 80):
+            ma_round += 1
+        elif (last_ma < 80 and df['MA'][i] > 320):
+            ma_round -= 1
+        last_ma = df['MA'][i]
+        df['MA'][i] = 360 * ma_round + df['MA'][i]
     # print(df)
     # print(df.head())
 
@@ -294,107 +338,82 @@ def generate():
     argument_of_perigee = all_lstm[4].min_max_scaler_y.inverse_transform(all_lstm[4].predict(this_dataX))
     mean_anomaly = all_lstm[5].min_max_scaler_y.inverse_transform(all_lstm[5].predict(this_dataX))
 
-    print(a)
+    a = float(a)
+    inclination = float(inclination)
+    RAAN = float(RAAN)
+    eccentricity = float(eccentricity)
+    argument_of_perigee = float(argument_of_perigee)
+    mean_anomaly = float(mean_anomaly)
+    if(a < 0):
+        a = -a
+    if(eccentricity < 0):
+        eccentricity = -eccentricity
+    inclination %= 360
+    RAAN %= 360
+    argument_of_perigee %= 360
+    mean_anomaly %= 360
+    if (inclination < 0):
+        inclination += 360
+    if (RAAN < 0):
+        RAAN += 360
+    if(argument_of_perigee < 0):
+        argument_of_perigee += 360
+    if(mean_anomaly < 0):
+        mean_anomaly += 360
+    round_per_day = 86400 / math.sqrt(4 * (math.pi ** 2) * (a ** 3) / (G * M))
+    round_per_day = round(round_per_day, 14)
+    inclination = round(inclination, 4)
+    RAAN = round(RAAN, 4)
+    eccentricity = round(eccentricity, 7)
+    eccentricity *= 10000000
+    eccentricity = int(eccentricity)
+    argument_of_perigee = round(argument_of_perigee, 4)
+    mean_anomaly = round(mean_anomaly, 4)
+
     print(inclination)
     print(RAAN)
     print(eccentricity)
     print(argument_of_perigee)
     print(mean_anomaly)
+    print(round_per_day)
 
-    # 下步步骤
-    # 数值读入czml
-    # 可视化
-    '''
+    input_path = base + '/result.txt'
+    with open(input_path, 'w') as f:
+        f.write(f'{norad_cat_id}\n')
+        f.write(init_line1)
+        f.write('2 {} {:08.4f} {:08.4f} {:07} {:08.4f} {:08.4f} {:017.14f}\n'.format(norad_cat_id, inclination, RAAN, eccentricity, argument_of_perigee, mean_anomaly, round_per_day))
+
     # Rewrite tle2czml
-    if (not os.access(output_path, os.F_OK)):
-        print('Generating ' + file_name_pre + '.czml')
+    output_path = base + '/result.czml'
+    if (os.access(output_path, os.F_OK)):
+        os.remove(output_path)
+    print('Generating result.czml')
 
-        with open(input_path, 'r') as f:
-            rgbs = Colors()
-            satellite_array = read_tles(f.read(), rgbs)
+    with open(input_path, 'r') as f:
+        rgbs = Colors()
+        satellite_array = read_tles(f.read(), rgbs)
 
-        start_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
-        end_time = start_time + timedelta(hours=24)
-        doc = create_czml_file(start_time, end_time)
+    start_time = datetime.datetime(end_date.year, end_date.month, end_date.day, 12, 0, 0) - datetime.timedelta(days=1)
+    end_time = start_time + datetime.timedelta(days=2)
+    doc = create_czml_file(start_time, end_time)
 
-        for sat in tqdm.tqdm(satellite_array):  # 以后还要把进度条返回前端 现在先不管 这不是特别重要
-            sat_name = sat.sat_name
-            orbit_time_in_minutes = sat.orbital_time_in_minutes
-            tle_epoch = sat.tle_epoch
+    for sat in tqdm.tqdm(satellite_array):  # 以后还要把进度条返回前端 现在先不管 这不是特别重要
+        sat_name = sat.sat_name
+        orbit_time_in_minutes = sat.orbital_time_in_minutes
+        tle_epoch = sat.tle_epoch
 
-            sat_packet = create_satellite_packet(sat, start_time, end_time)
+        sat_packet = create_satellite_packet(sat, start_time, end_time)
 
-            doc.packets.append(sat_packet)
+        doc.packets.append(sat_packet)
 
-        with open(output_path, 'w') as f:
-            f.write(str(doc))
+    with open(output_path, 'w') as f:
+        f.write(str(doc))
 
-        # Formalize Czml
-        file = open(output_path, 'rb')
-        strs = json.load(file)
-        js_data = json.dumps(strs, indent=4, separators=(',', ':')).encode('utf-8').decode('raw_unicode_escape')
-        with open(output_path, 'w') as f:
-            f.write(js_data)
-    '''
-
+    # Formalize Czml
+    file = open(output_path, 'rb')
+    strs = json.load(file)
+    js_data = json.dumps(strs, indent=4, separators=(',', ':')).encode('utf-8').decode('raw_unicode_escape')
+    with open(output_path, 'w') as f:
+        f.write(js_data)
 
     return jsonify({"code": 200})
-
-@compute_bp.route('/compute')
-def compute():
-    ts = load.timescale()
-
-    position_list = []
-
-    global data, utc_time, timestep
-    if(len(data) == 0):
-        with open('./static/data/show.txt', 'r') as f:
-            data = f.readlines()
-        utc_time = datetime.datetime.utcnow()
-        timestep = 1
-    else:
-        if (int(request.args.get('timestep')) != timestep):
-            timestep = int(request.args.get('timestep'))
-        utc_time = utc_time + datetime.timedelta(seconds=float(timestep) * 0.333)
-
-    # for i in range(int(len(data) / 2)):
-    for i in range(100):
-        line1 = data[i * 2 - 2]
-        line2 = data[i * 2 - 1]
-
-        satellite = EarthSatellite(line1, line2, ts=ts)
-        geocentric = satellite.at(ts.utc(utc_time.year, utc_time.month, utc_time.day, utc_time.hour, utc_time.minute, utc_time.second))
-        subpoint = wgs84.subpoint(geocentric)
-
-        latitude = str(subpoint.latitude)
-        latitude = re.sub(r'[^0-9.-]+', '*', latitude)
-        latitude = latitude.strip('*')
-        latitude_hour, latitude_minute, latitude_second = latitude.split('*')
-        latitude_hour = float(latitude_hour)
-        latitude_minute = float(latitude_minute)
-        latitude_second = float(latitude_second)
-        if(latitude_hour < 0):
-            latitude_minute = -latitude_minute
-            latitude_second = -latitude_second
-        latitude = latitude_hour + latitude_minute / 60.0 + latitude_second / 3600.0
-
-        longitude = str(subpoint.longitude)
-        longitude = re.sub(r'[^0-9.-]+', '*', longitude)
-        longitude = longitude.strip('*')
-        longitude_hour, longitude_minute, longitude_second = longitude.split('*')
-        longitude_hour = float(longitude_hour)
-        longitude_minute = float(longitude_minute)
-        longitude_second = float(longitude_second)
-        if (longitude_hour < 0):
-            longitude_minute = -longitude_minute
-            longitude_second = -longitude_second
-        longitude = longitude_hour + longitude_minute / 60.0 + longitude_second / 3600.0
-
-        height = str(subpoint.elevation.km)
-        height = re.sub(r'[^0-9.-]+', '*', height)
-        height = height.strip('*')
-        height = float(height)
-
-        position_list.append((latitude, longitude, height))
-
-    return jsonify({"success": 200, "msg": "Success!", "data": position_list, "time": utc_time.strftime("%Y-%m-%d %H:%M:%S"), "timestep": timestep})
