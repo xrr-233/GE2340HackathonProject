@@ -1,5 +1,2 @@
-﻿Project/.idea
-Project/__pycache__
-Project/apps/__pycache__
-Project/apps/index/__pycache__
-Project/apps/compute/__pycache__
+﻿.idea
+__pycache__
