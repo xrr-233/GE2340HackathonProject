@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the project code of our GE2340 project. We choose topic 3: Artificial Intelligence in Final Frontier— Space and Mother Earth!
+This is the project code of our GE2340 project. We choose topic 3: *Artificial Intelligence in Final Frontier — Space and Mother Earth!*
 
 The topic we chose was *MAPPING SPACE TRASH IN REAL TIME*. It required us to develop an open-source geospatial application that displays and locates every known debris object orbiting Earth in real-time.
 
