@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the project code of our GE2340 project. We choose topic 3: Artificial Intelligence in Final Frontier— Space and Mother Earth!
+This is the project code of our GE2340 project. We choose topic 3: *Artificial Intelligence in Final Frontier — Space and Mother Earth!*
 
 The topic we chose was *MAPPING SPACE TRASH IN REAL TIME*. It required us to develop an open-source geospatial application that displays and locates every known debris object orbiting Earth in real-time.
 
@@ -64,6 +64,8 @@ It is recommended to run this project using **Pycharm IDE Pro** (free for studen
 
 ## Use
 
-You should enter a <u>correct</u> ID of a satellite. And because our earliest data is from the 250th day in 2021, you should choose a date <u>later</u> than this day. Until now the processing progress can only be seen in the <u>terminal</u>. After processing, clear the cache in the browser to see the result.
+You should enter a **correct** ID of a satellite. And because our earliest data is from the 250th day in 2021, you should choose a date **later** than this day.
+
+Until now the processing progress can only be seen in the **terminal**. After processing, **clear the cache** in the browser to see the result.
 
 We provide a set of data to be the example (in Project/static/data/result.txt & result.czml).
