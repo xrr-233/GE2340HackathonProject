@@ -114,23 +114,6 @@ def generate():
 
                 min_moment = min(moment, min_moment)
                 data.append([str(name), moment, a, inclination, RAAN, eccentricity, argument_of_perigee, mean_anomaly])
-                '''
-                print("卫星ID：" + str(name))
-                print("数据读取时刻：" + str(moment))
-                print()
-                print("轨道半长轴：" + str(a / 1000) + " km")
-                print("轨道倾角：" + str(inclination))
-                print("升交点赤经：" + str(RAAN))
-                print("偏心率：" + str(eccentricity))
-                print("近地点幅角：" + str(argument_of_perigee))
-                print("平近点角：" + str(mean_anomaly)) # 现在先定下轨道的形状 之后考虑
-                '''
-
-    # 1 00005U 58002B 21303.21787226 .00000130 00000-0 19306-3 0 9990
-    # 2 00005 34.2404 128.6696 1842399 81.3618 299.0274 10.84825330259536
-
-    #         轨道倾角  升交点赤经 轨道偏心率 近地点幅角 平近点角（和时间有关）
-
     # endregion
 
     date = date.split('-')
@@ -150,6 +133,7 @@ def generate():
     df = df.drop(columns=['Name'])
     columns = ['Moment', 'Axis', 'Inclination', 'RAAN', 'Eccentricity', 'AOP', 'MA']
 
+    # region Data Preprocessing
     inclination_round = 0
     last_inclination = df['Inclination'][0]
     raan_round = 0
@@ -186,8 +170,7 @@ def generate():
             ma_round -= 1
         last_ma = df['MA'][i]
         df['MA'][i] = 360 * ma_round + df['MA'][i]
-    # print(df)
-    # print(df.head())
+    # endregion
 
     plt.figure(figsize=(15, 15))
     for i, each in enumerate(columns):
